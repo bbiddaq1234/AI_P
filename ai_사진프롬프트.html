@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 이미지 프롬프트 평가기</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Pretendard', sans-serif; }
+        .animate-spin-slow { animation: spin 3s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col justify-between">
+
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto px-4 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white text-xl shadow-md shadow-indigo-100">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold text-slate-900">AI 이미지 프롬프트 평가기</h1>
+                    <p class="text-xs text-slate-500">내가 작성한 프롬프트가 좋은 프롬프트인지 AI에게 평가받아 보세요.</p>
+                </div>
+            </div>
+            <nav class="flex items-center gap-2 text-sm font-medium">
+                <button onclick="openModal('guideModal')" class="px-3 py-2 text-slate-600 hover:text-indigo-600 hover:bg-slate-50 rounded-lg transition">
+                    <i class="fa-regular fa-circle-question mr-1.5"></i>사용방법
+                </button>
+                <button onclick="openModal('criteriaModal')" class="px-3 py-2 text-slate-600 hover:text-indigo-600 hover:bg-slate-50 rounded-lg transition">
+                    <i class="fa-solid fa-list-check mr-1.5"></i>평가기준
+                </button>
+                <button onclick="resetApp()" class="px-3 py-2 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition font-semibold">
+                    <i class="fa-solid fa-rotate-right mr-1.5"></i>다시하기
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-4 py-8 w-full flex-grow">
+
+        <!-- Input Section (Step 1 & 2) -->
+        <div id="inputSection" class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            
+            <!-- Image Upload Box -->
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 flex flex-col justify-between">
+                <div>
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                            <i class="fa-regular fa-image text-indigo-600"></i> 생성된 이미지 업로드
+                        </h2>
+                        <span id="imageStatusBadge" class="text-xs px-2.5 py-1 rounded-full bg-slate-100 text-slate-500 font-medium">필수</span>
+                    </div>
+
+                    <!-- Dropzone -->
+                    <div id="dropZone" class="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center hover:border-indigo-500 hover:bg-indigo-50/30 transition cursor-pointer relative overflow-hidden group min-h-[280px] flex flex-col items-center justify-center">
+                        <input type="file" id="imageInput" accept="image/jpeg, image/png, image/webp" class="absolute inset-0 opacity-0 cursor-pointer z-10">
+                        
+                        <!-- Default state -->
+                        <div id="uploadPrompt" class="flex flex-col items-center">
+                            <div class="w-16 h-16 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center text-2xl mb-4 group-hover:scale-110 transition duration-300">
+                                <i class="fa-solid fa-cloud-arrow-up"></i>
+                            </div>
+                            <p class="font-semibold text-slate-700 mb-1">AI 생성 이미지를 업로드하세요</p>
+                            <p class="text-xs text-slate-400 mb-4">JPG, PNG, WEBP 지원</p>
+                            <span class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg shadow-sm hover:bg-indigo-700 transition">
+                                이미지 업로드
+                            </span>
+                        </div>
+
+                        <!-- Preview state -->
+                        <div id="imagePreviewContainer" class="hidden absolute inset-0 bg-white p-2 flex flex-col items-center justify-center">
+                            <img id="imagePreview" src="" alt="업로드된 이미지" class="max-h-[200px] object-contain rounded-lg shadow-sm mb-2">
+                            <div class="flex items-center justify-between w-full px-4 text-xs text-slate-500 bg-slate-50 py-2 rounded-lg">
+                                <span id="imageFileName" class="truncate max-w-[180px] font-medium">filename.png</span>
+                                <span id="imageFileSize" class="text-slate-400">0 KB</span>
+                                <button onclick="removeImage(event)" class="text-rose-500 hover:text-rose-700 p-1 font-bold">
+                                    <i class="fa-solid fa-trash-can"></i> 삭제
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="imageReadyMsg" class="hidden mt-4 text-xs font-medium text-emerald-600 flex items-center gap-1.5 bg-emerald-50 p-2.5 rounded-lg">
+                    <i class="fa-solid fa-circle-check"></i> 이미지가 준비되었습니다 ✓
+                </div>
+            </div>
+
+            <!-- Prompt Input Box -->
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 flex flex-col justify-between">
+                <div>
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                            사용한 프롬프트
+                        </h2>
+                        <button onclick="autoImprovePrompt()" class="text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-semibold px-3 py-1.5 rounded-lg transition flex items-center gap-1">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> 프롬프트 자동 개선
+                        </button>
+                    </div>
+
+                    <div class="relative">
+                        <textarea id="promptInput" rows="8" class="w-full p-4 rounded-xl border border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none text-sm resize-none transition" placeholder="예: A cinematic portrait of a Korean woman standing in a rainy Seoul street at night, neon lights, realistic photography, shallow depth of field..."></textarea>
+                        <div class="absolute bottom-3 right-3 text-xs text-slate-400 font-medium">
+                            <span id="charCount">0</span>자
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4 text-xs text-slate-500 flex items-center gap-1.5">
+                    <i class="fa-solid fa-circle-info text-indigo-500"></i> 영어나 한글 모두 입력 가능하며, 구체적일수록 정확한 평가가 가능합니다.
+                </div>
+            </div>
+
+        </div>
+
+        <div class="mt-8 flex flex-col items-center">
+            <button id="analyzeBtn" onclick="startAnalysis()" disabled class="w-full max-w-md py-4 rounded-xl bg-slate-200 text-slate-400 font-bold text-base transition shadow-sm flex items-center justify-center gap-2 cursor-not-allowed">
+                <i class="fa-solid fa-magnifying-glass-chart"></i> AI 프롬프트 분석하기
+            </button>
+            <p id="analysisNotice" class="text-xs text-slate-400 mt-2">이미지와 프롬프트를 모두 입력하면 분석 버튼이 활성화됩니다.</p>
+        </div>
+
+        <!-- Loading Modal / State -->
+        <div id="loadingState" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl flex flex-col items-center text-center">
+                <div class="w-16 h-16 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center text-2xl mb-4 animate-spin-slow">
+                    <i class="fa-solid fa-spinner"></i>
+                </div>
+                <h3 class="text-lg font-bold text-slate-900 mb-2">AI가 분석을 진행하고 있습니다</h3>
+                <p id="loadingMessage" class="text-sm text-slate-500 mb-6 transition-all duration-300">이미지를 분석하고 있습니다...</p>
+                <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                    <div id="progressBar" class="bg-indigo-600 h-full w-0 transition-all duration-500"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="resultSection" class="hidden space-y-8 mt-4">
+            
+            <!-- Top Summary Card -->
+            <div class="bg-gradient-to-r from-indigo-900 to-indigo-800 rounded-3xl p-6 sm:p-8 text-white shadow-xl flex flex-col md:flex-row justify-between items-center gap-6">
+                <div class="flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">
+                    <div class="w-28 h-28 rounded-2xl bg-white/10 p-2 backdrop-blur-md border border-white/25 flex items-center justify-center overflow-hidden shrink-0">
+                        <img id="resultThumb" src="" alt="결과 이미지" class="w-full h-full object-cover rounded-xl">
+                    </div>
+                    <div>
+                        <div class="inline-block px-3 py-1 rounded-full bg-indigo-500/30 text-indigo-200 text-xs font-semibold mb-2 border border-indigo-400/30">
+                            AI 프롬프트 평가 결과
+                        </div>
+                        <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight" id="resultGradeText">매우 좋은 프롬프트입니다.</h2>
+                        <p class="text-indigo-200 text-xs sm:text-sm mt-1">업로드된 이미지와 프롬프트의 정밀 비교 분석이 완료되었습니다.</p>
+                    </div>
+                </div>
+                <div class="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6 text-center min-w-[160px]">
+                    <div class="text-xs text-indigo-200 font-medium mb-1">종합 점수 / 등급</div>
+                    <div class="flex items-baseline justify-center gap-1">
+                        <span id="finalScoreNum" class="text-4xl font-black">88</span>
+                        <span class="text-indigo-300 text-lg font-bold">/ 100</span>
+                    </div>
+                    <div id="finalBadge" class="mt-2 inline-block px-3 py-0.5 rounded-full bg-emerald-500 text-white font-bold text-xs">
+                        🥇 A급
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detailed Metrics & Feedback Dashboard -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                
+                <!-- Criteria breakdown -->
+                <div class="lg:col-span-1 bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+                    <h3 class="text-base font-bold text-slate-900 mb-2 flex items-center gap-2">
+                        <i class="fa-solid fa-chart-bar text-indigo-600"></i> 세부 평가 항목 (7개)
+                    </h3>
+                    <p class="text-[11px] text-slate-400 mb-4">항목을 클릭하면 상세 피드백을 확인할 수 있습니다.</p>
+                    <div id="criteriaList" class="space-y-3">
+                        <!-- Populated via JS -->
+                    </div>
+                </div>
+
+                <!-- AI Summary, Pros, Cons & Actionable Feedback -->
+                <div class="lg:col-span-2 space-y-6">
+                    
+                    <!-- AI Summary -->
+                    <div class="bg-indigo-50/60 border border-indigo-100 rounded-2xl p-6">
+                        <h3 class="text-sm font-bold text-indigo-900 mb-2 flex items-center gap-2">
+                            <i class="fa-solid fa-robot text-indigo-600"></i> AI 총평 및 맞춤형 피드백
+                        </h3>
+                        <p id="aiSummaryText" class="text-slate-700 text-sm leading-relaxed">
+                            "전체적으로 좋은 프롬프트입니다. 특히 비 오는 서울의 밤과 네온 조명을 구체적으로 표현한 점이 좋습니다. 다만 카메라 앵글과 렌즈 정보를 추가하면 원하는 사진을 더 안정적으로 만들 수 있습니다."
+                        </p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Pros -->
+                        <div class="bg-emerald-50/50 border border-emerald-100 rounded-2xl p-6">
+                            <h3 class="text-sm font-bold text-emerald-800 mb-3 flex items-center gap-2">
+                                <i class="fa-solid fa-circle-check text-emerald-600"></i> 잘한 점
+                            </h3>
+                            <ul id="prosList" class="space-y-2.5 text-xs text-emerald-900 font-medium">
+                                <!-- Populated via JS -->
+                            </ul>
+                        </div>
+
+                        <!-- Cons -->
+                        <div class="bg-amber-50/50 border border-amber-100 rounded-2xl p-6">
+                            <h3 class="text-sm font-bold text-amber-800 mb-3 flex items-center gap-2">
+                                <i class="fa-solid fa-triangle-exclamation text-amber-600"></i> 개선할 점 (실시간 피드백)
+                            </h3>
+                            <ul id="consList" class="space-y-2.5 text-xs text-amber-900 font-medium">
+                                <!-- Populated via JS -->
+                            </ul>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-slate-200">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-100">
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                            <i class="fa-solid fa-wand-magic-sparkles text-indigo-600"></i> AI가 개선한 추천 프롬프트
+                        </h3>
+                        <p class="text-xs text-slate-500 mt-0.5">원본 프롬프트를 바탕으로 시각적 완성도를 높인 최적화 프롬프트입니다.</p>
+                    </div>
+                    <button onclick="copyImprovedPrompt()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl shadow-sm transition flex items-center gap-2 self-start sm:self-auto">
+                        <i class="fa-regular fa-copy"></i> 복사하기
+                    </button>
+                </div>
+
+                <!-- Improved Prompt Box -->
+                <div class="bg-slate-900 text-slate-100 rounded-xl p-5 mb-8 text-sm font-mono leading-relaxed relative overflow-hidden">
+                    <div class="absolute top-2 right-3 text-[10px] text-slate-400 bg-slate-800 px-2 py-0.5 rounded">Optimized</div>
+                    <p id="improvedPromptText">A cinematic portrait of a Korean woman standing in a rainy Seoul street at night, neon lights reflecting on wet asphalt, shot on 35mm lens, f/1.8, anamorphic flare, photorealistic photography, depth of field, 8k resolution</p>
+                </div>
+
+                <!-- Improvement Check Tags -->
+                <div class="mb-8">
+                    <p class="text-xs font-bold text-slate-700 mb-3">무엇이 개선되었나요?</p>
+                    <div id="improvementTags" class="flex flex-wrap gap-2">
+                        <span class="px-3 py-1 bg-indigo-50 text-indigo-700 text-xs font-medium rounded-full border border-indigo-100">+ 인물의 자세 추가</span>
+                        <span class="px-3 py-1 bg-indigo-50 text-indigo-700 text-xs font-medium rounded-full border border-indigo-100">+ 카메라 앵글 추가</span>
+                        <span class="px-3 py-1 bg-indigo-50 text-indigo-700 text-xs font-medium rounded-full border border-indigo-100">+ 렌즈 정보 추가</span>
+                        <span class="px-3 py-1 bg-indigo-50 text-indigo-700 text-xs font-medium rounded-full border border-indigo-100">+ 조명 정보 강화</span>
+                    </div>
+                </div>
+
+                <!-- Original vs Improved Comparison -->
+                <div>
+                    <h4 class="text-sm font-bold text-slate-900 mb-3">원본 vs 개선 프롬프트 비교</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                            <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-2">원본 프롬프트</span>
+                            <p id="compareOriginal" class="text-xs text-slate-700 font-mono leading-relaxed">입력된 원본 프롬프트 내용...</p>
+                        </div>
+                        <div class="bg-indigo-50/50 border border-indigo-200 rounded-xl p-4">
+                            <span class="text-[11px] font-bold text-indigo-600 uppercase tracking-wider block mb-2">AI 개선 프롬프트</span>
+                            <p id="compareImproved" class="text-xs text-indigo-900 font-mono leading-relaxed font-semibold">개선된 프롬프트 내용...</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Prompt Checklist -->
+            <div class="bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-slate-200">
+                <h3 class="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-square-check text-indigo-600"></i> 좋은 프롬프트 작성 체크리스트
+                </h3>
+                <div id="checklistGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs sm:text-sm">
+                    <!-- Populated via JS -->
+                </div>
+            </div>
+
+            <!-- Educational Mission Box -->
+            <div class="bg-gradient-to-br from-amber-500 to-orange-600 text-white rounded-2xl p-6 sm:p-8 shadow-lg flex flex-col md:flex-row justify-between items-center gap-6">
+                <div>
+                    <div class="inline-block px-3 py-1 rounded-full bg-white/25 text-white text-xs font-bold mb-2">
+                        🚀 교육용 실습 미션
+                    </div>
+                    <h3 class="text-xl font-extrabold mb-1" id="missionTitle">미션: 카메라 앵글을 프롬프트에 추가하세요!</h3>
+                    <p class="text-amber-100 text-xs sm:text-sm" id="missionDesc">제시된 개선 포인트를 참고하여 프롬프트를 수정하고 다시 분석해보세요. 점수가 대폭 상승합니다.</p>
+                </div>
+                <button onclick="applyMissionAndRetry()" class="px-6 py-3 bg-white text-orange-600 font-bold rounded-xl text-sm shadow-md hover:bg-amber-50 transition shrink-0">
+                    <i class="fa-solid fa-arrow-rotate-left mr-1.5"></i> 미션 프롬프트 적용하고 재평가
+                </button>
+            </div>
+
+            <!-- Footer Action Buttons -->
+            <div class="flex flex-wrap items-center justify-center gap-3 pt-4 pb-12">
+                <button onclick="resetApp()" class="px-5 py-3 bg-white border border-slate-300 text-slate-700 font-semibold text-sm rounded-xl hover:bg-slate-50 transition shadow-sm flex items-center gap-2">
+                    <i class="fa-solid fa-rotate-right"></i> 다시 평가하기
+                </button>
+                <button onclick="copyImprovedPrompt()" class="px-5 py-3 bg-white border border-slate-300 text-slate-700 font-semibold text-sm rounded-xl hover:bg-slate-50 transition shadow-sm flex items-center gap-2">
+                    <i class="fa-regular fa-copy"></i> 결과 복사하기
+                </button>
+                <button onclick="alert('평가 결과가 안전하게 저장되었습니다.')" class="px-5 py-3 bg-white border border-slate-300 text-slate-700 font-semibold text-sm rounded-xl hover:bg-slate-50 transition shadow-sm flex items-center gap-2">
+                    <i class="fa-solid fa-download"></i> 결과 저장하기
+                </button>
+                <button onclick="resetApp()" class="px-5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm rounded-xl transition shadow-sm flex items-center gap-2">
+                    <i class="fa-solid fa-plus"></i> 새로운 이미지 평가하기
+                </button>
+            </div>
+
+        </div>
+
+    </main>
+
+    <footer class="bg-white border-t border-slate-200 py-6 text-center text-xs text-slate-400">
+        <p>© 2026 AI Image Prompt Evaluator. Designed for students and beginners.</p>
+    </footer>
+
+    <!-- Modals -->
+    <!-- Guide Modal -->
+    <div id="guideModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl relative">
+            <h3 class="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                <i class="fa-regular fa-circle-question text-indigo-600"></i> 사용 방법 가이드
+            </h3>
+            <ol class="space-y-3 text-sm text-slate-600 list-decimal list-inside">
+                <li><strong class="text-slate-800">이미지 업로드:</strong> AI로 생성한 이미지를 드래그하거나 선택하여 업로드합니다.</li>
+                <li><strong class="text-slate-800">프롬프트 입력:</strong> 해당 이미지를 만들 때 사용한 원본 프롬프트를 입력합니다.</li>
+                <li><strong class="text-slate-800">AI 분석 시작:</strong> 분석 버튼을 누르면 7가지 기준으로 정밀 평가 및 피드백이 제공됩니다.</li>
+                <li><strong class="text-slate-800">결과 및 개선:</strong> 점수와 구체적인 피드백을 확인하고, AI 추천 프롬프트로 미션을 수행해보세요!</li>
+            </ol>
+            <div class="mt-6 flex justify-end">
+                <button onclick="closeModal('guideModal')" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg transition">확인</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Criteria Modal -->
+    <div id="criteriaModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl relative max-h-[80vh] overflow-y-auto">
+            <h3 class="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-list-check text-indigo-600"></i> 7가지 평가 기준 안내
+            </h3>
+            <div class="space-y-3 text-xs text-slate-600">
+                <div class="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                    <strong class="text-slate-900 block mb-1">① 구체성</strong> 대상, 상황, 배경 등이 얼마나 구체적인지 평가합니다.
+                </div>
+                <div class="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                    <strong class="text-slate-900 block mb-1">② 시각적 표현력</strong> 색상, 조명, 분위기, 구도 등의 표현력을 평가합니다.
+                </div>
+                <div class="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                    <strong class="text-slate-900 block mb-1">③ 이미지-프롬프트 일치도</strong> 실제 업로드된 이미지와 프롬프트의 싱크로율을 평가합니다.
+                </div>
+                <div class="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                    <strong class="text-slate-900 block mb-1">④ 스타일 명확성</strong> 원하는 이미지 스타일(실사, 애니메이션 등)의 명확성을 평가합니다.
+                </div>
+                <div class="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                    <strong class="text-slate-900 block mb-1">⑤ 구도 및 카메라 정보</strong> 카메라 앵글, 렌즈 정보, 심도 지정 여부를 평가합니다.
+                </div>
+                <div class="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                    <strong class="text-slate-900 block mb-1">⑥ 분위기 및 감성</strong> 시간대, 날씨, 감정 전달력을 평가합니다.
+                </div>
+                <div class="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                    <strong class="text-slate-900 block mb-1">⑦ 프롬프트 구조</strong> 논리적인 순서로 구성되어 있는지 평가합니다.
+                </div>
+            </div>
+            <div class="mt-6 flex justify-end">
+                <button onclick="closeModal('criteriaModal')" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg transition">확인</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Criteria Feedback Detail Modal -->
+    <div id="detailModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl relative">
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="modalTitle" class="text-lg font-bold text-slate-900">항목 상세 피드백</h3>
+                <button onclick="closeModal('detailModal')" class="text-slate-400 hover:text-slate-600 text-lg font-bold">&times;</button>
+            </div>
+            <div id="modalContent" class="space-y-4 text-xs text-slate-600">
+                <!-- Populated dynamically -->
+            </div>
+            <div class="mt-6 flex justify-end">
+                <button onclick="closeModal('detailModal')" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg transition">확인</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let uploadedImageFile = null;
+        let uploadedImageUrl = "";
+
+        // DOM Elements
+        const imageInput = document.getElementById('imageInput');
+        const uploadPrompt = document.getElementById('uploadPrompt');
+        const imagePreviewContainer = document.getElementById('imagePreviewContainer');
+        const imagePreview = document.getElementById('imagePreview');
+        const imageFileName = document.getElementById('imageFileName');
+        const imageFileSize = document.getElementById('imageFileSize');
+        const imageReadyMsg = document.getElementById('imageReadyMsg');
+        const promptInput = document.getElementById('promptInput');
+        const charCount = document.getElementById('charCount');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const analysisNotice = document.getElementById('analysisNotice');
+        const loadingState = document.getElementById('loadingState');
+        const loadingMessage = document.getElementById('loadingMessage');
+        const progressBar = document.getElementById('progressBar');
+        const resultSection = document.getElementById('resultSection');
+        const inputSection = document.getElementById('inputSection');
+
+        // Character Counter & Validation Listener
+        promptInput.addEventListener('input', (e) => {
+            const len = e.target.value.length;
+            charCount.textContent = len;
+            checkFormReady();
+        });
+
+        // Image Upload Handler
+        imageInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                uploadedImageFile = file;
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    uploadedImageUrl = event.target.result;
+                    imagePreview.src = uploadedImageUrl;
+                    imageFileName.textContent = file.name;
+                    imageFileSize.textContent = (file.size / 1024).toFixed(1) + ' KB';
+                    
+                    uploadPrompt.classList.add('hidden');
+                    imagePreviewContainer.classList.remove('hidden');
+                    imageReadyMsg.classList.remove('hidden');
+                    checkFormReady();
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        function removeImage(event) {
+            event.stopPropagation();
+            uploadedImageFile = null;
+            uploadedImageUrl = "";
+            imageInput.value = "";
+            imagePreview.src = "";
+            imagePreviewContainer.classList.add('hidden');
+            uploadPrompt.classList.remove('hidden');
+            imageReadyMsg.classList.add('hidden');
+            checkFormReady();
+        }
+
+        function checkFormReady() {
+            const hasImage = uploadedImageUrl !== "";
+            const hasPrompt = promptInput.value.trim().length > 0;
+
+            if (hasImage && hasPrompt) {
+                analyzeBtn.disabled = false;
+                analyzeBtn.classList.remove('bg-slate-200', 'text-slate-400', 'cursor-not-allowed');
+                analyzeBtn.classList.add('bg-indigo-600', 'hover:bg-indigo-700', 'text-white', 'shadow-md');
+                analysisNotice.textContent = "분석을 시작할 준비가 완료되었습니다!";
+                analysisNotice.classList.remove('text-slate-400');
+                analysisNotice.classList.add('text-indigo-600', 'font-semibold');
+            } else {
+                analyzeBtn.disabled = true;
+                analyzeBtn.classList.add('bg-slate-200', 'text-slate-400', 'cursor-not-allowed');
+                analyzeBtn.classList.remove('bg-indigo-600', 'hover:bg-indigo-700', 'text-white', 'shadow-md');
+                analysisNotice.textContent = "이미지와 프롬프트를 모두 입력하면 분석 버튼이 활성화됩니다.";
+                analysisNotice.classList.add('text-slate-400');
+                analysisNotice.classList.remove('text-indigo-600', 'font-semibold');
+            }
+        }
+
+        // Auto Improve Prompt Simulation
+        function autoImprovePrompt() {
+            const current = promptInput.value.trim();
+            if (!current) {
+                promptInput.value = "A cinematic portrait of a Korean woman standing in a rainy Seoul street at night, neon lights...";
+            } else {
+                promptInput.value = current + ", highly detailed, photorealistic, 8k resolution, volumetric lighting, shot on 35mm lens";
+            }
+            charCount.textContent = promptInput.value.length;
+            checkFormReady();
+        }
+
+        // Analysis Simulation with Steps
+        function startAnalysis() {
+            loadingState.classList.remove('hidden');
+            progressBar.style.width = '0%';
+
+            const steps = [
+                { msg: "이미지를 분석하고 있습니다...", progress: "25%" },
+                { msg: "프롬프트 구조를 분석하고 있습니다...", progress: "50%" },
+                { msg: "이미지와 프롬프트의 일치도를 확인하고 있습니다...", progress: "75%" },
+                { msg: "최종 평가 및 피드백을 계산하고 있습니다...", progress: "100%" }
+            ];
+
+            let currentStep = 0;
+            const interval = setInterval(() => {
+                if (currentStep < steps.length) {
+                    loadingMessage.textContent = steps[currentStep].msg;
+                    progressBar.style.width = steps[currentStep].progress;
+                    currentStep++;
+                } else {
+                    clearInterval(interval);
+                    setTimeout(() => {
+                        loadingState.classList.add('hidden');
+                        renderResults();
+                    }, 500);
+                }
+            }, 600);
+        }
+
+        // Global criteria data reference for modal inspection
+        let currentCriteriaData = [];
+
+        // Render Results Data
+        function renderResults() {
+            inputSection.classList.add('hidden');
+            document.querySelector('#inputSection + div').classList.add('hidden'); // analyze button container
+            resultSection.classList.remove('hidden');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+
+            // Set result thumbnail
+            document.getElementById('resultThumb').src = uploadedImageUrl;
+
+            // Mock Data for 7 criteria with detailed feedback
+            currentCriteriaData = [
+                { 
+                    name: "구체성", 
+                    score: 92, 
+                    desc: "주인공과 장소가 명확하게 설명되어 있습니다.",
+                    good: "한국인 여성, 비 오는 서울 거리 등 핵심 대상이 구체적입니다.",
+                    improve: "인물의 의상이나 표정에 대한 묘사를 더하면 더욱 좋습니다.",
+                    tip: "예: 'wearing a yellow raincoat and looking thoughtfully'"
+                },
+                { 
+                    name: "시각적 표현력", 
+                    score: 85, 
+                    desc: "조명과 분위기는 잘 설명되어 있으나 카메라 구도 설명이 부족합니다.",
+                    good: "네온 조명과 반사광 표현이 훌륭합니다.",
+                    improve: "색감(color palette)이나 전체적인 톤 지시가 누락되었습니다.",
+                    tip: "예: 'cyberpunk color grading, cyan and magenta tones'"
+                },
+                { 
+                    name: "이미지-프롬프트 일치도", 
+                    score: 94, 
+                    desc: "야간 도시, 네온 조명, 인물의 위치가 이미지에 아주 잘 반영되었습니다.",
+                    good: "작성한 키워드와 실제 생성된 시각 요소의 싱크로율이 매우 높습니다.",
+                    improve: "특별히 부족한 점 없이 프롬프트 의도가 이미지에 잘 구현되었습니다.",
+                    tip: "현재 수준을 유지하세요."
+                },
+                { 
+                    name: "스타일 명확성", 
+                    score: 78, 
+                    desc: "photorealistic 스타일은 명확하지만 세부 질감 묘사가 필요합니다.",
+                    good: "실사(realistic photography) 느낌을 명시했습니다.",
+                    improve: "어떤 카메라나 렌즈 스타일인지 지정되지 않았습니다.",
+                    tip: "예: 'shot on 35mm film, highly detailed texture'"
+                },
+                { 
+                    name: "구도 / 카메라", 
+                    score: 72, 
+                    desc: "인물 중심 구도는 유추되나 구체적인 렌즈 정보와 앵글이 빠져 있습니다.",
+                    good: "인물이 화면 중심에 배치되도록 유도했습니다.",
+                    improve: "아이레벨 앵글(eye-level), 심도(shallow depth of field) 등을 구체화하세요.",
+                    tip: "예: 'eye-level shot, f/1.8 aperture'"
+                },
+                { 
+                    name: "분위기 / 감성", 
+                    score: 90, 
+                    desc: "비 오는 밤과 네온 조명을 통해 원하는 감성이 명확하게 전달됩니다.",
+                    good: "시간대와 날씨 조건이 감성적인 무드를 잘 자아냅니다.",
+                    improve: "인물의 감정 상태(예: melancholic, joyful)를 추가하면 더 극대화됩니다.",
+                    tip: "예: 'melancholic and cinematic mood'"
+                },
+                { 
+                    name: "프롬프트 구조", 
+                    score: 88, 
+                    desc: "주제와 배경, 스타일 순으로 논리적인 구조를 잘 갖추었습니다.",
+                    good: "주요 피처가 앞쪽에 배치되어 AI가 인식하기 좋습니다.",
+                    improve: "품질 수식어(8k, highly detailed)를 후반부에 깔끔하게 정돈하세요.",
+                    tip: "예: [주제] + [배경] + [조명] + [카메라] 순으로 정렬"
+                }
+            ];
+
+            let criteriaHtml = "";
+            currentCriteriaData.forEach((item, index) => {
+                const barWidth = item.score + '%';
+                criteriaHtml += `
+                    <div onclick="openDetailModal(${index})" class="p-3 bg-slate-50 hover:bg-indigo-50/40 rounded-xl border border-slate-100 transition cursor-pointer group">
+                        <div class="flex justify-between items-center mb-1 text-xs">
+                            <span class="font-bold text-slate-800 group-hover:text-indigo-600 transition flex items-center gap-1">
+                                ${item.name} <i class="fa-solid fa-circle-info text-[10px] text-slate-400"></i>
+                            </span>
+                            <span class="font-bold text-indigo-600">${item.score}점</span>
+                        </div>
+                        <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden mb-1">
+                            <div class="bg-indigo-600 h-full rounded-full" style="width: ${barWidth}"></div>
+                        </div>
+                        <p class="text-[11px] text-slate-500 truncate">${item.desc}</p>
+                    </div>
+                `;
+            });
+            document.getElementById('criteriaList').innerHTML = criteriaHtml;
+
+            // Pros & Cons Feedbacks
+            const pros = [
+                "✓ 장소(서울 밤거리)가 매우 구체적이고 현실감 있습니다.",
+                "✓ 시간대(밤)와 날씨(비) 조건이 명확하게 지정되었습니다.",
+                "✓ 네온 조명 및 반사광 표현 지시어가 훌륭합니다.",
+                "✓ 전체적인 이미지의 감성과 무드가 잘 전달됩니다."
+            ];
+            document.getElementById('prosList').innerHTML = pros.map(p => `<li>${p}</li>`).join('');
+
+            const cons = [
+                "△ 구체적인 카메라 앵글(예: eye-level)이 누락되었습니다.",
+                "△ 렌즈 스펙(예: 35mm f/1.8) 지정이 없어 구도가 임의로 생성될 수 있습니다.",
+                "△ 인물의 세부 자세나 의상 묘사를 더 강화할 수 있습니다.",
+                "△ 색감에 대한 구체적인 컬러 팔레트 지시가 부족합니다."
+            ];
+            document.getElementById('consList').innerHTML = cons.map(c => `<li>${c}</li>`).join('');
+
+            // Comparisons
+            const originalText = promptInput.value.trim();
+            document.getElementById('compareOriginal').textContent = originalText;
+            const improvedText = originalText + ", shot on 35mm lens, f/1.8, anamorphic flare, detailed facial expression, moody cinematic color grading";
+            document.getElementById('improvedPromptText').textContent = improvedText;
+            document.getElementById('compareImproved').textContent = improvedText;
+
+            // Checklist
+            const checklist = [
+                { q: "주제가 명확한가?", checked: true },
+                { q: "인물/사물이 구체적인가?", checked: true },
+                { q: "행동이 명확한가?", checked: true },
+                { q: "배경을 설명했는가?", checked: true },
+                { q: "구도를 설명했는가?", checked: false },
+                { q: "조명을 설명했는가?", checked: true },
+                { q: "색감을 설명했는가?", checked: false },
+                { q: "분위기를 설명했는가?", checked: true },
+                { q: "이미지 스타일을 설명했는가?", checked: true },
+                { q: "카메라 정보를 넣었는가?", checked: false }
+            ];
+
+            let checkHtml = "";
+            checklist.forEach(item => {
+                if (item.checked) {
+                    checkHtml += `<div class="flex items-center gap-2 p-2.5 rounded-lg bg-emerald-50/60 text-emerald-900 font-medium"><i class="fa-solid fa-square-check text-emerald-600"></i> ${item.q}</div>`;
+                } else {
+                    checkHtml += `<div class="flex items-center gap-2 p-2.5 rounded-lg bg-amber-50/60 text-amber-900 font-medium"><i class="fa-solid fa-triangle-exclamation text-amber-600"></i> ${item.q} (보완 필요)</div>`;
+                }
+            });
+            document.getElementById('checklistGrid').innerHTML = checkHtml;
+        }
+
+        // Open detailed feedback modal for a criteria item
+        function openDetailModal(index) {
+            const item = currentCriteriaData[index];
+            document.getElementById('modalTitle').textContent = `📊 [${item.name}] 상세 피드백 (${item.score점})`;
+            
+            let contentHtml = `
+                <div class="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                    <strong class="text-slate-900 block mb-1">📝 평가 요약</strong>
+                    <p class="text-slate-700">${item.desc}</p>
+                </div>
+                <div class="p-3 bg-emerald-50/70 rounded-xl border border-emerald-100">
+                    <strong class="text-emerald-900 block mb-1">👍 잘된 부분</strong>
+                    <p class="text-emerald-800">${item.good}</p>
+                </div>
+                <div class="p-3 bg-amber-50/70 rounded-xl border border-amber-100">
+                    <strong class="text-amber-900 block mb-1">🔧 개선할 부분</strong>
+                    <p class="text-amber-800">${item.improve}</p>
+                </div>
+                <div class="p-3 bg-indigo-50/70 rounded-xl border border-indigo-100">
+                    <strong class="text-indigo-900 block mb-1">💡 작성 팁</strong>
+                    <p class="text-indigo-800 font-mono text-[11px]">${item.tip}</p>
+                </div>
+            `;
+            document.getElementById('modalContent').innerHTML = contentHtml;
+            openModal('detailModal');
+        }
+
+        // Mission apply function
+        function applyMissionAndRetry() {
+            promptInput.value = promptInput.value + ", shot on 35mm lens, eye-level angle, cinematic lighting";
+            charCount.textContent = promptInput.value.length;
+            resultSection.classList.add('hidden');
+            inputSection.classList.remove('hidden');
+            document.querySelector('#inputSection + div').classList.remove('hidden');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            alert("미션 프롬프트가 추가되었습니다! 다시 분석을 시작해 점수 상승을 확인해보세요.");
+            checkFormReady();
+        }
+
+        // Reset App
+        function resetApp() {
+            uploadedImageFile = null;
+            uploadedImageUrl = "";
+            imageInput.value = "";
+            imagePreview.src = "";
+            imagePreviewContainer.classList.add('hidden');
+            uploadPrompt.classList.remove('hidden');
+            imageReadyMsg.classList.add('hidden');
+            promptInput.value = "";
+            charCount.textContent = "0";
+            checkFormReady();
+
+            resultSection.classList.add('hidden');
+            inputSection.classList.remove('hidden');
+            document.querySelector('#inputSection + div').classList.remove('hidden');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // Copy improved prompt
+        function copyImprovedPrompt() {
+            const text = document.getElementById('improvedPromptText').textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                alert("개선된 프롬프트가 클립보드에 복사되었습니다!");
+            });
+        }
+
+        // Modal Controls
+        function openModal(id) {
+            document.getElementById(id).classList.remove('hidden');
+        }
+        function closeModal(id) {
+            document.getElementById(id).classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
