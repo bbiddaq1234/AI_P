@@ -294,21 +294,22 @@
             </div>
 
             <!-- Footer Action Buttons -->
-            <div class="flex flex-wrap items-center justify-center gap-3 pt-4 pb-12">
-                <button onclick="resetApp()" class="px-5 py-3 bg-white border border-slate-300 text-slate-700 font-semibold text-sm rounded-xl hover:bg-slate-50 transition shadow-sm flex items-center gap-2">
-                    <i class="fa-solid fa-rotate-right"></i> 다시 평가하기
-                </button>
-                <button onclick="copyImprovedPrompt()" class="px-5 py-3 bg-white border border-slate-300 text-slate-700 font-semibold text-sm rounded-xl hover:bg-slate-50 transition shadow-sm flex items-center gap-2">
-                    <i class="fa-regular fa-copy"></i> 결과 복사하기
-                </button>
-                <button onclick="alert('평가 결과가 안전하게 저장되었습니다.')" class="px-5 py-3 bg-white border border-slate-300 text-slate-700 font-semibold text-sm rounded-xl hover:bg-slate-50 transition shadow-sm flex items-center gap-2">
-                    <i class="fa-solid fa-download"></i> 결과 저장하기
-                </button>
-                <button onclick="resetApp()" class="px-5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm rounded-xl transition shadow-sm flex items-center gap-2">
-                    <i class="fa-solid fa-plus"></i> 새로운 이미지 평가하기
-                </button>
-            </div>
-
+        <div class="flex flex-wrap items-center justify-center gap-3 pt-4 pb-12">
+            <button onclick="resetApp()" class="px-5 py-3 bg-white border border-slate-300 text-slate-700 font-semibold text-sm rounded-xl hover:bg-slate-50 transition shadow-sm flex items-center gap-2 cursor-pointer">
+                <i class="fa-solid fa-rotate-right"></i> 다시 평가하기
+            </button>
+            <button onclick="autoImprovePrompt(); window.scrollTo({top: 0, behavior: 'smooth'});" class="px-5 py-3 bg-white border border-slate-300 text-slate-700 font-semibold text-sm rounded-xl hover:bg-slate-50 transition shadow-sm flex items-center gap-2 cursor-pointer">
+                <i class="fa-solid fa-wand-magic-sparkles text-indigo-600"></i> 프롬프트 개선하기
+            </button>
+            <button onclick="copyResultSummary()" class="px-5 py-3 bg-white border border-slate-300 text-slate-700 font-semibold text-sm rounded-xl hover:bg-slate-50 transition shadow-sm flex items-center gap-2 cursor-pointer">
+                <i class="fa-regular fa-copy"></i> 결과 복사하기
+            </button>
+            <button onclick="saveResultAsFile()" class="px-5 py-3 bg-white border border-slate-300 text-slate-700 font-semibold text-sm rounded-xl hover:bg-slate-50 transition shadow-sm flex items-center gap-2 cursor-pointer">
+                <i class="fa-solid fa-download"></i> 결과 저장하기
+            </button>
+            <button onclick="resetApp()" class="px-5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm rounded-xl transition shadow-sm flex items-center gap-2 cursor-pointer">
+                <i class="fa-solid fa-plus"></i> 새로운 이미지 평가하기
+            </button>
         </div>
 
     </main>
@@ -713,9 +714,66 @@
         // Copy improved prompt
         function copyImprovedPrompt() {
             const text = document.getElementById('improvedPromptText').textContent;
-            navigator.clipboard.writeText(text).then(() => {
-                alert("개선된 프롬프트가 클립보드에 복사되었습니다!");
-            });
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(() => {
+                    alert("개선된 프롬프트가 클립보드에 복사되었습니다!");
+                }).catch(() => {
+                    fallbackCopy(text);
+                });
+            } else {
+                fallbackCopy(text);
+            }
+        }
+
+        // Copy Result Summary
+        function copyResultSummary() {
+            const score = document.getElementById('finalScoreNum').textContent;
+            const improved = document.getElementById('improvedPromptText').textContent;
+            const summary = `[AI 이미지 프롬프트 평가 결과]\n종합 점수: ${score}/100\n추천 개선 프롬프트: ${improved}`;
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(summary).then(() => {
+                    alert("평가 결과 요약이 클립보드에 복사되었습니다!");
+                }).catch(() => {
+                    fallbackCopy(summary);
+                });
+            } else {
+                fallbackCopy(summary);
+            }
+        }
+
+        // Save Result as File
+        function saveResultAsFile() {
+            const score = document.getElementById('finalScoreNum').textContent;
+            const original = promptInput.value.trim();
+            const improved = document.getElementById('improvedPromptText').textContent;
+            const content = `=== AI 이미지 프롬프트 평가 보고서 ===\n종합 점수: ${score}점\n\n[원본 프롬프트]\n${original}\n\n[AI 추천 개선 프롬프트]\n${improved}\n`;
+            
+            const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'AI_Prompt_Evaluation_Report.txt';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            alert("평가 보고서 파일이 다운로드되었습니다!");
+        }
+
+        function fallbackCopy(text) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            document.body.appendChild(textarea);
+            textarea.focus();
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                alert("클립보드에 복사되었습니다!");
+            } catch (err) {
+                alert("복사에 실패했습니다.");
+            }
+            document.body.removeChild(textarea);
         }
 
         // Modal Controls
